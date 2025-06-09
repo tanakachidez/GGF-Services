@@ -120,16 +120,21 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem("adminLoggedIn")
-    if (loggedIn === "true") {
+    // Check if admin is logged in
+    const isLoggedIn = localStorage.getItem("adminLoggedIn") === "true"
+
+    if (isLoggedIn) {
+      // Set authentication state to true
       setIsAuthenticated(true)
-      if (activeTab === "messages") {
-        fetchMessages()
-      }
+      
+      // Fetch messages when component mounts
+      fetchMessages()
+
+      // ...any other initialization code...
     } else {
       router.push("/admin")
     }
-  }, [router, activeTab])
+  }, [router, activeTab]) // Keep existing dependencies
 
   const fetchMessages = async () => {
     setIsLoading(true)

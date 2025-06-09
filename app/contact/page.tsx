@@ -34,44 +34,70 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("=== FORM SUBMISSION STARTED ===")
+    console.log("Form data:", formData)
     setIsSubmitting(true)
     setSubmitStatus("idle")
 
     try {
-      const { error } = await supabase.from("users").insert([
-        {
+      // Log Supabase connection test
+      console.log("Testing Supabase connection...")
+      const { data: testData, error: testError } = await supabase.from("users").select("count").limit(1)
+
+      if (testError) {
+        console.error("❌ Supabase connection test FAILED:", testError)
+        throw new Error(`Connection failed: ${testError.message}`)
+      }
+      
+      console.log("✅ Supabase connection successful!")
+      console.log("Test data received:", testData)
+      
+      // Prepare the data for insertion
+      const userData = {
+        firstname: formData.firstName,
+        lastname: formData.lastName,
+        email: formData.email,
+        phone_number: formData.phone,
+        message: formData.message,
+        created_date: new Date().toISOString().split("T")[0],
+        created_time: new Date().toTimeString().split(" ")[0],
+      }
+      
+      console.log("Attempting simplified insert...")
+      const { data, error } = await supabase
+        .from("users")
+        .insert({
           firstname: formData.firstName,
           lastname: formData.lastName,
           email: formData.email,
           phone_number: formData.phone,
           message: formData.message,
-        },
-      ])
+          created_date: new Date().toISOString().split("T")[0],
+          created_time: new Date().toTimeString().split(" ")[0],
+        })
+
+      console.log("Insert response:", { error })
 
       if (error) {
-        // Handle duplicate email error specifically
-        if (error.code === "23505" && error.message.includes("users_email_key")) {
-          // Email already exists, update the existing record instead
-          const { error: updateError } = await supabase
-            .from("users")
-            .update({
-              firstname: formData.firstName,
-              lastname: formData.lastName,
-              phone_number: formData.phone,
-              message: formData.message,
-              created_date: new Date().toISOString().split("T")[0],
-              created_time: new Date().toTimeString().split(" ")[0],
-            })
-            .eq("email", formData.email)
-
-          if (updateError) {
-            throw updateError
-          }
-        } else {
-          throw error
+        console.error("❌ INSERT FAILED. Error details:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+        
+        // If it's an RLS policy error, show a more helpful message
+        if (error.message && error.message.includes("row-level security policy")) {
+          throw new Error("Permission denied: Please contact the administrator to enable form submissions.")
         }
+        
+        throw error
       }
 
+      console.log("✅ Data successfully inserted!")
+      console.log("Inserted record:", data)
+      
+      // Reset form and show success message
       setSubmitStatus("success")
       setShowAnimation(true)
       setFormData({
@@ -81,16 +107,38 @@ export default function ContactPage() {
         phone: "",
         message: "",
       })
+      console.log("Form reset, showing success animation")
 
       // Hide animation after 3 seconds
       setTimeout(() => {
         setShowAnimation(false)
+        console.log("Success animation hidden")
       }, 3000)
+      
+      console.log("=== FORM SUBMISSION COMPLETED SUCCESSFULLY ===")
     } catch (error) {
-      console.error("Error submitting form:", error)
-      setSubmitStatus("error")
+      console.error("=== FORM SUBMISSION FAILED ===")
+      console.error("Error object:", error)
+      
+      if (typeof error === "object" && error !== null) {
+        // Log as much info as possible
+        console.error("Error type:", Object.prototype.toString.call(error))
+        
+        if ("message" in error) console.error("Error message:", (error as any).message)
+        if ("details" in error) console.error("Error details:", (error as any).details)
+        if ("hint" in error) console.error("Error hint:", (error as any).hint)
+        if ("code" in error) console.error("Error code:", (error as any).code)
+        
+        setSubmitStatus("error")
+        alert("Failed to submit form: " + ((error as any).message || "Unknown error"))
+      } else {
+        console.error("Non-object error:", error)
+        setSubmitStatus("error")
+        alert("Failed to submit form: Unknown error")
+      }
     } finally {
       setIsSubmitting(false)
+      console.log("Submission state reset, form ready for new input")
     }
   }
 
